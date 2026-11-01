@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="HostPick - Sistem Penunjang Keputusan pemilihan host live streaming dengan metode SAW">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;font-size:14px}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>HostPick SPK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: studio "rundown" — sticky on-air bar, tabs as the show's segments, one working panel at a time */
+:root{
+  --bg:#f6f2f7; --surface:#ffffff; --sunk:#efe8f1; --line:#ddd2e1;
+  --fg:#23172a; --muted:#6c5d73; --accent:#c2185b; --accent-ink:#ffffff; --accent-soft:#fbe3ee;
+  --live:#e5383b; --good:#1b8a6b; --good-soft:#dff3ec; --warn:#b86a00; --warn-soft:#fdf0d9;
+  --display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#17111b; --surface:#211828; --sunk:#2a1f32; --line:#3a2c44;
+  --fg:#f3ecf6; --muted:#b3a3bb; --accent:#ff5fa2; --accent-ink:#1a0f14; --accent-soft:#3b1b2c;
+  --live:#ff6b6e; --good:#4fd1a5; --good-soft:#163a30; --warn:#f2b25c; --warn-soft:#3a2b14; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17111b; --surface:#211828; --sunk:#2a1f32; --line:#3a2c44;
+  --fg:#f3ecf6; --muted:#b3a3bb; --accent:#ff5fa2; --accent-ink:#1a0f14; --accent-soft:#3b1b2c;
+  --live:#ff6b6e; --good:#4fd1a5; --good-soft:#163a30; --warn:#f2b25c; --warn-soft:#3a2b14; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+h2{font-size:1.5rem;font-weight:800}
+h3{font-size:1.08rem;font-weight:600}
+p{margin:0}
+.num,td.n,input.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* top bar */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:12px;padding-block:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.onair{display:inline-flex;align-items:center;gap:6px;font:600 .68rem/1 var(--mono);letter-spacing:.12em;color:var(--live);border:1.5px solid var(--live);padding:5px 8px;border-radius:4px}
+.onair i{width:7px;height:7px;border-radius:50%;background:var(--live);animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.onair i{animation:none}}
+.brand h1{font-size:1.25rem;font-weight:800}
+.brand small{display:block;color:var(--muted);font-size:.78rem;font-family:var(--body)}
+nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav a{flex:none;text-decoration:none;color:var(--muted);font-weight:600;font-size:.88rem;padding:8px 12px;border-radius:999px;display:flex;gap:6px;align-items:center}
+nav a b{font:600 .7rem var(--mono);opacity:.7}
+nav a[aria-current="page"]{background:var(--fg);color:var(--bg)}
+nav a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+
+main{padding-block:24px 64px}
+section{display:grid;gap:18px}
+.lead{color:var(--muted);max-width:65ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:grid;gap:14px;min-width:0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+
+/* buttons */
+button{font:600 .9rem var(--body);border-radius:10px;padding:10px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.ghost{background:transparent}
+button.icon{padding:6px 10px;font-size:.8rem;color:var(--muted)}
+button.icon:hover{color:var(--live);border-color:var(--live)}
+button:disabled{opacity:.45;cursor:not-allowed}
+
+/* tables */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{background:var(--sunk);font-weight:600;font-size:.78rem;color:var(--muted);letter-spacing:.02em}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right}
+input,select{font:500 .9rem var(--body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%;min-width:0}
+input.n{text-align:right}
+td input{min-width:90px}
+td input.name{min-width:150px}
+.tag{display:inline-block;font:600 .68rem var(--mono);letter-spacing:.06em;padding:3px 7px;border-radius:5px}
+.tag.benefit{background:var(--good-soft);color:var(--good)}
+.tag.cost{background:var(--warn-soft);color:var(--warn)}
+.code{font:600 .8rem var(--mono);color:var(--accent)}
+
+/* notices */
+.note{border-radius:10px;padding:12px 14px;font-size:.9rem}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.ok{background:var(--good-soft);color:var(--good)}
+.note.info{background:var(--accent-soft);color:var(--fg)}
+
+/* weight meter */
+.meter{height:10px;border-radius:99px;background:var(--sunk);overflow:hidden;display:flex}
+.meter span{height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:var(--muted)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+/* home */
+.hero{display:grid;gap:12px}
+.hero h2{font-size:clamp(1.7rem,4.5vw,2.6rem)}
+.hero h2 em{font-style:normal;color:var(--accent)}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;counter-reset:s}
+.flow div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:4px}
+.flow div::before{counter-increment:s;content:"Langkah " counter(s);font:600 .7rem var(--mono);color:var(--accent);letter-spacing:.06em}
+.flow p{font-size:.85rem;color:var(--muted)}
+.formula{font-family:var(--mono);font-size:.88rem;background:var(--sunk);border-radius:8px;padding:12px;overflow-x:auto;white-space:pre}
+
+/* result */
+.winner{background:var(--fg);color:var(--bg);border-radius:var(--r);padding:20px;display:grid;gap:6px}
+.winner .k{font:600 .72rem var(--mono);letter-spacing:.12em;opacity:.7}
+.winner h3{font-size:clamp(1.5rem,4vw,2.2rem);font-weight:800}
+.winner .score{font:600 1rem var(--mono)}
+.rank{display:grid;gap:10px}
+.rk{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center}
+.rk .pos{font:800 1.1rem var(--display);color:var(--muted);text-align:center}
+.rk.top .pos{color:var(--accent)}
+.rk .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk .track{height:8px;background:var(--sunk);border-radius:99px;overflow:hidden;margin-top:5px}
+.rk .fill{height:100%;background:var(--muted);border-radius:99px;transition:width .5s}
+.rk.top .fill{background:var(--accent)}
+.rk .v{font:600 .95rem var(--mono)}
+.steps-calc{display:grid;gap:8px;font-family:var(--mono);font-size:.82rem}
+.steps-calc div{background:var(--sunk);border-radius:8px;padding:10px 12px;overflow-x:auto;white-space:nowrap}
+details summary{cursor:pointer;font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:.88rem;z-index:20}
+.muted{color:var(--muted);font-size:.85rem}
+footer{color:var(--muted);font-size:.78rem;padding-block:0 24px}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="bar">
+      <div class="brand">
+        <span class="onair"><i></i>SPK</span>
+        <div><h1>HostPick</h1><small>Pemilihan Host Live Streaming · Metode SAW</small></div>
+      </div>
+    </div>
+    <nav id="nav" aria-label="Menu">
+      <a href="#beranda"><b>01</b>Beranda</a>
+      <a href="#kriteria"><b>02</b>Kriteria &amp; Bobot</a>
+      <a href="#host"><b>03</b>Data Host</a>
+      <a href="#hitung"><b>04</b>Perhitungan</a>
+      <a href="#hasil"><b>05</b>Hasil Ranking</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- BERANDA -->
+  <section id="v-beranda">
+    <div class="hero">
+      <h2>Host mana yang paling cocok untuk <em>live</em> brand kamu?</h2>
+      <p class="lead">HostPick membantu tim brand memilih host live streaming secara objektif. Setiap host dinilai dari beberapa kriteria, lalu dihitung dengan metode <b>Simple Additive Weighting (SAW)</b> sampai keluar ranking dan rekomendasi host terbaik.</p>
+      <div class="row"><button class="primary" data-go="host">Mulai isi data host</button><button class="ghost" data-go="hasil">Lihat hasil contoh</button></div>
+    </div>
+    <div class="flow">
+      <div><h3>Atur kriteria</h3><p>Tentukan kriteria, jenisnya (benefit/cost), dan bobotnya. Total bobot 100%.</p></div>
+      <div><h3>Isi data host</h3><p>Masukkan nilai setiap calon host untuk setiap kriteria.</p></div>
+      <div><h3>Normalisasi</h3><p>Nilai diubah ke skala 0–1 supaya bisa dibandingkan.</p></div>
+      <div><h3>Kalikan bobot</h3><p>Nilai normal dikali bobot, lalu dijumlahkan jadi skor V.</p></div>
+      <div><h3>Ranking</h3><p>Skor V terbesar = host yang direkomendasikan.</p></div>
+    </div>
+    <div class="panel">
+      <h3>Rumus SAW yang dipakai</h3>
+      <div class="formula">Benefit (makin besar makin bagus):  r = x / max(x)
+Cost    (makin kecil makin bagus):  r = min(x) / x
+Skor akhir:                         V = Σ (w × r)</div>
+      <p class="muted">x = nilai asli, r = nilai ternormalisasi, w = bobot kriteria (dalam desimal).</p>
+    </div>
+  </section>
+
+  <!-- KRITERIA -->
+  <section id="v-kriteria" hidden>
+    <div><h2>Kriteria &amp; Bobot</h2><p class="lead">Kriteria adalah hal yang dinilai dari seorang host. Benefit artinya makin besar makin bagus, cost artinya makin kecil makin bagus.</p></div>
+    <div class="panel">
+      <div class="tbl"><table>
+        <thead><tr><th>Kode</th><th>Nama kriteria</th><th>Jenis</th><th>Cara isi</th><th class="n">Bobot (%)</th><th></th></tr></thead>
+        <tbody id="crit-body"></tbody>
+      </table></div>
+      <div class="row"><button id="add-crit">+ Tambah kriteria</button></div>
+      <div class="meter" id="w-meter"></div>
+      <div class="legend" id="w-legend"></div>
+      <div id="w-status"></div>
+    </div>
+    <div class="panel">
+      <h3>Skala 1–5 untuk kriteria penilaian</h3>
+      <div class="tbl"><table><thead><tr><th class="n">Nilai</th><th>Arti</th></tr></thead>
+      <tbody><tr><td class="n">1</td><td>Sangat kurang</td></tr><tr><td class="n">2</td><td>Kurang</td></tr><tr><td class="n">3</td><td>Cukup</td></tr><tr><td class="n">4</td><td>Baik</td></tr><tr><td class="n">5</td><td>Sangat baik</td></tr></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- HOST -->
+  <section id="v-host" hidden>
+    <div><h2>Data Calon Host</h2><p class="lead">Masukkan nilai tiap host. Data contoh sudah terisi, kamu bisa ubah, tambah, atau hapus.</p></div>
+    <div class="panel">
+      <div class="tbl"><table>
+        <thead id="host-head"></thead>
+        <tbody id="host-body"></tbody>
+      </table></div>
+      <div class="row">
+        <button id="add-host">+ Tambah host</button>
+        <button class="ghost" id="reset">Kembalikan data contoh</button>
+        <span class="muted" id="reset-confirm" hidden>Yakin? Semua perubahan hilang. <button class="icon" id="reset-yes">Ya, reset</button> <button class="icon" id="reset-no">Batal</button></span>
+      </div>
+      <div id="host-status"></div>
+    </div>
+    <div class="row"><button class="primary" data-go="hitung">Hitung dengan SAW →</button></div>
+  </section>
+
+  <!-- HITUNG -->
+  <section id="v-hitung" hidden>
+    <div><h2>Proses Perhitungan SAW</h2><p class="lead">Semua langkah ditampilkan supaya hasilnya bisa dicek manual.</p></div>
+    <div id="calc"></div>
+  </section>
+
+  <!-- HASIL -->
+  <section id="v-hasil" hidden>
+    <div><h2>Hasil Ranking</h2><p class="lead">Host diurutkan dari skor V terbesar. Skor paling tinggi adalah rekomendasi keputusan.</p></div>
+    <div id="result"></div>
+  </section>
+</main>
+<footer class="wrap">HostPick · Sistem Penunjang Keputusan · Erika Djuliyanti, S1 Sistem Informasi · Data host bersifat contoh</footer>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const COLORS=["#c2185b","#7b4bb7","#1b8a6b","#d07a00","#2f6fbf","#8a5a44","#5c7c2a","#b0306a"];
+const SAMPLE=()=>({
+  criteria:[
+    {id:"c1",name:"Kemampuan Komunikasi",type:"benefit",scale:"skala",weight:25},
+    {id:"c2",name:"Penguasaan Produk",type:"benefit",scale:"skala",weight:20},
+    {id:"c3",name:"Rata-rata Penonton per Live (orang)",type:"benefit",scale:"angka",weight:20},
+    {id:"c4",name:"Rata-rata Order per Live (pesanan)",type:"benefit",scale:"angka",weight:20},
+    {id:"c5",name:"Tarif per Jam (Rp)",type:"cost",scale:"angka",weight:15}
+  ],
+  hosts:[
+    {id:"h1",name:"Nadia Putri",vals:{c1:5,c2:4,c3:850,c4:42,c5:250000}},
+    {id:"h2",name:"Rizky Ananda",vals:{c1:4,c2:5,c3:620,c4:38,c5:200000}},
+    {id:"h3",name:"Salsabila",vals:{c1:3,c2:3,c3:1200,c4:55,c5:350000}},
+    {id:"h4",name:"Dimas Pratama",vals:{c1:4,c2:4,c3:500,c4:25,c5:150000}},
+    {id:"h5",name:"Ayu Lestari",vals:{c1:5,c2:5,c3:700,c4:40,c5:300000}}
+  ]
+});
+const KEY="hostpick-v1";
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
+if(!S||!Array.isArray(S.criteria)||!Array.isArray(S.hosts))S=SAMPLE();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const uid=p=>p+Math.random().toString(36).slice(2,8);
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=(n,d=4)=>Number.isFinite(n)?(d===4?n.toFixed(4):(+n.toFixed(d)).toString()).replace(".",","):"–";
+const fmtBig=n=>Number.isFinite(n)?n.toLocaleString("id-ID"):"–";
+const code=i=>"C"+(i+1), acode=i=>"A"+(i+1);
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,1800)}
+
+/* ---------- SAW core (pure) ---------- */
+function saw(criteria,hosts){
+  const errors=[];
+  const total=criteria.reduce((a,c)=>a+(+c.weight||0),0);
+  if(!criteria.length)errors.push("Belum ada kriteria.");
+  if(hosts.length<2)errors.push("Minimal 2 host supaya bisa dibandingkan.");
+  if(Math.abs(total-100)>0.001)errors.push(`Total bobot masih ${fmt(total,2)}%. Harus tepat 100%.`);
+  const X=hosts.map(h=>criteria.map(c=>{const v=parseFloat(h.vals?.[c.id]);return Number.isFinite(v)?v:NaN}));
+  hosts.forEach((h,i)=>{
+    if(!String(h.name||"").trim())errors.push(`Nama ${acode(i)} masih kosong.`);
+    criteria.forEach((c,j)=>{const v=X[i][j];
+      if(!Number.isFinite(v))errors.push(`Nilai ${code(j)} untuk ${h.name||acode(i)} belum diisi.`);
+      else if(v<0)errors.push(`Nilai ${code(j)} untuk ${h.name||acode(i)} tidak boleh negatif.`);
+      else if(c.type==="cost"&&v===0)errors.push(`Nilai ${code(j)} (cost) untuk ${h.name||acode(i)} tidak boleh 0.`);
+      else if(c.scale==="skala"&&(v<1||v>5))errors.push(`Nilai ${code(j)} untuk ${h.name||acode(i)} harus 1 sampai 5.`);
+    })});
+  if(errors.length)return{errors};
+  const ref=criteria.map((c,j)=>{const col=X.map(r=>r[j]);return c.type==="benefit"?Math.max(...col):Math.min(...col)});
+  const R=X.map(r=>r.map((x,j)=>{const c=criteria[j];
+    if(c.type==="benefit")return ref[j]===0?0:x/ref[j];return ref[j]/x}));
+  const W=criteria.map(c=>(+c.weight)/100);
+  const V=R.map(r=>r.reduce((a,x,j)=>a+x*W[j],0));
+  const order=hosts.map((h,i)=>({i,name:h.name,v:V[i]})).sort((a,b)=>b.v-a.v||a.i-b.i);
+  return{errors:[],X,ref,R,W,V,order};
+}
+
+/* ---------- routing ---------- */
+const VIEWS=["beranda","kriteria","host","hitung","hasil"];
+function route(){
+  const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):"beranda";
+  VIEWS.forEach(n=>$("#v-"+n).hidden=n!==v);
+  document.querySelectorAll("#nav a").forEach(a=>{if(a.getAttribute("href")==="#"+v)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
+  render(v);window.scrollTo(0,0);
+}
+document.addEventListener("click",e=>{const g=e.target.closest("[data-go]");if(g)location.hash=g.dataset.go});
+addEventListener("hashchange",route);
+
+/* ---------- KRITERIA ---------- */
+function renderCriteria(){
+  $("#crit-body").innerHTML=S.criteria.map((c,j)=>`
+   <tr data-id="${c.id}">
+    <td><span class="code">${code(j)}</span></td>
+    <td><input class="name" id="cn-${c.id}" data-f="name" value="${esc(c.name)}" aria-label="Nama kriteria ${code(j)}"></td>
+    <td><select id="ct-${c.id}" data-f="type" aria-label="Jenis ${code(j)}"><option value="benefit"${c.type==="benefit"?" selected":""}>Benefit</option><option value="cost"${c.type==="cost"?" selected":""}>Cost</option></select></td>
+    <td><select id="cs-${c.id}" data-f="scale" aria-label="Cara isi ${code(j)}"><option value="skala"${c.scale==="skala"?" selected":""}>Skala 1–5</option><option value="angka"${c.scale==="angka"?" selected":""}>Angka bebas</option></select></td>
+    <td><input class="n" id="cw-${c.id}" data-f="weight" type="number" min="0" max="100" step="1" value="${esc(c.weight)}" aria-label="Bobot ${code(j)}"></td>
+    <td><button class="icon" data-del-crit="${c.id}" ${S.criteria.length<=1?"disabled":""}>Hapus</button></td>
+   </tr>`).join("");
+  renderWeights();
+}
+function renderWeights(){
+  const total=S.criteria.reduce((a,c)=>a+(+c.weight||0),0);
+  $("#w-meter").innerHTML=S.criteria.map((c,j)=>`<span style="width:${Math.max(0,+c.weight||0)/Math.max(100,total)*100}%;background:${COLORS[j%COLORS.length]}"></span>`).join("");
+  $("#w-legend").innerHTML=S.criteria.map((c,j)=>`<span><i style="background:${COLORS[j%COLORS.length]}"></i>${code(j)} ${fmt(+c.weight||0,2)}%</span>`).join("");
+  $("#w-status").innerHTML=Math.abs(total-100)<0.001?`<div class="note ok">Total bobot 100%. Siap dihitung.</div>`:`<div class="note warn">Total bobot sekarang <b class="num">${fmt(total,2)}%</b>. Ubah supaya totalnya tepat 100%.</div>`;
+}
+$("#crit-body").addEventListener("input",e=>{
+  const tr=e.target.closest("tr");if(!tr)return;const c=S.criteria.find(x=>x.id===tr.dataset.id);const f=e.target.dataset.f;
+  c[f]=f==="weight"?(e.target.value===""?"":+e.target.value):e.target.value;save();renderWeights();
+});
+$("#crit-body").addEventListener("click",e=>{
+  const id=e.target.dataset.delCrit;if(!id)return;
+  S.criteria=S.criteria.filter(c=>c.id!==id);S.hosts.forEach(h=>delete h.vals[id]);save();renderCriteria();toast("Kriteria dihapus");
+});
+$("#add-crit").onclick=()=>{S.criteria.push({id:uid("c"),name:"Kriteria baru",type:"benefit",scale:"skala",weight:0});save();renderCriteria();toast("Kriteria ditambahkan, atur bobotnya")};
+
+/* ---------- HOST ---------- */
+function renderHosts(){
+  $("#host-head").innerHTML=`<tr><th>Kode</th><th>Nama host</th>${S.criteria.map((c,j)=>`<th class="n" title="${esc(c.name)}">${code(j)} <span class="tag ${c.type}">${c.type==="benefit"?"B":"C"}</span><br><span style="font-weight:500">${esc(c.name.length>22?c.name.slice(0,21)+"…":c.name)}</span></th>`).join("")}<th></th></tr>`;
+  $("#host-body").innerHTML=S.hosts.map((h,i)=>`
+   <tr data-id="${h.id}"><td><span class="code">${acode(i)}</span></td>
+    <td><input class="name" id="hn-${h.id}" data-f="name" value="${esc(h.name)}" aria-label="Nama host ${acode(i)}"></td>
+    ${S.criteria.map((c,j)=>`<td><input class="n" id="hv-${h.id}-${c.id}" data-c="${c.id}" type="number" ${c.scale==="skala"?'min="1" max="5" step="1"':'min="0" step="any"'} value="${esc(h.vals[c.id])}" aria-label="${esc(c.name)} untuk ${esc(h.name)}"></td>`).join("")}
+    <td><button class="icon" data-del-host="${h.id}">Hapus</button></td></tr>`).join("");
+  hostStatus();
+}
+function hostStatus(){
+  const r=saw(S.criteria,S.hosts);
+  $("#host-status").innerHTML=r.errors.length?`<div class="note warn"><b>Perlu diperbaiki:</b> ${esc(r.errors[0])}${r.errors.length>1?` (+${r.errors.length-1} lainnya)`:""}</div>`:`<div class="note ok">${S.hosts.length} host lengkap. Siap dihitung.</div>`;
+}
+$("#host-body").addEventListener("input",e=>{
+  const tr=e.target.closest("tr");if(!tr)return;const h=S.hosts.find(x=>x.id===tr.dataset.id);
+  if(e.target.dataset.f==="name")h.name=e.target.value;else h.vals[e.target.dataset.c]=e.target.value===""?"":+e.target.value;
+  save();hostStatus();
+});
+$("#host-body").addEventListener("click",e=>{const id=e.target.dataset.delHost;if(!id)return;S.hosts=S.hosts.filter(h=>h.id!==id);save();renderHosts();toast("Host dihapus")});
+$("#add-host").onclick=()=>{S.hosts.push({id:uid("h"),name:"Host baru",vals:{}});save();renderHosts();const last=S.hosts[S.hosts.length-1];const el=$("#hn-"+last.id);el&&el.select();};
+$("#reset").onclick=()=>$("#reset-confirm").hidden=false;
+$("#reset-no").onclick=()=>$("#reset-confirm").hidden=true;
+$("#reset-yes").onclick=()=>{S=SAMPLE();save();$("#reset-confirm").hidden=true;renderHosts();toast("Data contoh dikembalikan")};
+
+/* ---------- HITUNG ---------- */
+function errBox(r){return`<div class="note warn"><b>Belum bisa dihitung.</b><ul style="margin:6px 0 0;padding-left:18px">${r.errors.slice(0,6).map(e=>`<li>${esc(e)}</li>`).join("")}</ul></div><div class="row"><button data-go="kriteria">Cek kriteria</button><button data-go="host">Cek data host</button></div>`}
+function matrix(rows,cols,cell){return`<div class="tbl"><table><thead><tr><th>Alternatif</th>${cols}</tr></thead><tbody>${rows}</tbody></table></div>`}
+function renderCalc(){
+  const r=saw(S.criteria,S.hosts),C=S.criteria,H=S.hosts;
+  if(r.errors.length){$("#calc").innerHTML=errBox(r);return}
+  const head=C.map((c,j)=>`<th class="n">${code(j)} <span class="tag ${c.type}">${c.type==="benefit"?"B":"C"}</span></th>`).join("");
+  const X=H.map((h,i)=>`<tr><td><span class="code">${acode(i)}</span> ${esc(h.name)}</td>${r.X[i].map(v=>`<td class="n">${fmtBig(v)}</td>`).join("")}</tr>`).join("")
+    +`<tr><td><b>${"Max / Min"}</b></td>${C.map((c,j)=>`<td class="n"><b>${c.type==="benefit"?"max":"min"} ${fmtBig(r.ref[j])}</b></td>`).join("")}</tr>`;
+  const R=H.map((h,i)=>`<tr><td><span class="code">${acode(i)}</span> ${esc(h.name)}</td>${r.R[i].map(v=>`<td class="n">${fmt(v)}</td>`).join("")}</tr>`).join("");
+  const ex=H[0];
+  const exLines=C.map((c,j)=>c.type==="benefit"
+    ?`r(${acode(0)},${code(j)}) = ${fmtBig(r.X[0][j])} / ${fmtBig(r.ref[j])} = ${fmt(r.R[0][j])}`
+    :`r(${acode(0)},${code(j)}) = ${fmtBig(r.ref[j])} / ${fmtBig(r.X[0][j])} = ${fmt(r.R[0][j])}`);
+  const Vl=H.map((h,i)=>`<div>V(${acode(i)}) ${esc(h.name)} = ${r.R[i].map((x,j)=>`(${fmt(r.W[j],2)}×${fmt(x)})`).join(" + ")} = <b>${fmt(r.V[i])}</b></div>`).join("");
+  $("#calc").innerHTML=`
+   <div class="panel"><h3>Langkah 1 · Matriks keputusan (X)</h3><p class="muted">Nilai asli setiap host. Baris terakhir menunjukkan nilai max (benefit) atau min (cost) setiap kolom.</p>${matrix(X,head)}</div>
+   <div class="panel"><h3>Langkah 2 · Normalisasi (R)</h3><p class="muted">Benefit: r = x ÷ max. Cost: r = min ÷ x. Contoh untuk ${esc(ex.name)}:</p>
+     <div class="steps-calc">${exLines.map(l=>`<div>${l}</div>`).join("")}</div>${matrix(R,head)}</div>
+   <div class="panel"><h3>Langkah 3 · Bobot (W)</h3>
+     <div class="tbl"><table><thead><tr>${C.map((c,j)=>`<th class="n">${code(j)}</th>`).join("")}</tr></thead><tbody><tr>${r.W.map(w=>`<td class="n">${fmt(w,2)}</td>`).join("")}</tr></tbody></table></div></div>
+   <div class="panel"><h3>Langkah 4 · Nilai preferensi (V = Σ w × r)</h3><div class="steps-calc">${Vl}</div></div>
+   <div class="row"><button class="primary" data-go="hasil">Lihat ranking →</button></div>`;
+}
+
+/* ---------- HASIL ---------- */
+function renderResult(){
+  const r=saw(S.criteria,S.hosts);
+  if(r.errors.length){$("#result").innerHTML=errBox(r);return}
+  const best=r.order[0],max=best.v||1,tie=r.order[1]&&Math.abs(r.order[1].v-best.v)<1e-9;
+  const strong=S.criteria.map((c,j)=>({c,j,x:r.R[best.i][j]})).filter(o=>o.x>=0.999).map(o=>o.c.name);
+  $("#result").innerHTML=`
+   <div class="winner"><span class="k">REKOMENDASI HOST</span><h3>${esc(best.name)}</h3><span class="score">Skor V = ${fmt(best.v)}</span>
+    <p style="opacity:.85;font-size:.9rem">${tie?"Ada skor yang sama di posisi teratas. Pertimbangkan wawancara tambahan.":strong.length?`Unggul paling tinggi di: ${esc(strong.join(", "))}.`:"Skor gabungan tertinggi dari semua kriteria."}</p></div>
+   <div class="panel"><h3>Urutan host</h3><div class="rank">
+    ${r.order.map((o,k)=>`<div class="rk ${k===0?"top":""}"><div class="pos">${k+1}</div><div><div class="nm">${esc(o.name)}</div><div class="track"><div class="fill" style="width:${o.v/max*100}%"></div></div></div><div class="v">${fmt(o.v)}</div></div>`).join("")}
+   </div></div>
+   <div class="panel"><h3>Tabel hasil</h3><div class="tbl"><table><thead><tr><th class="n">Rank</th><th>Kode</th><th>Nama host</th><th class="n">Skor V</th><th>Keputusan</th></tr></thead><tbody>
+    ${r.order.map((o,k)=>`<tr><td class="n">${k+1}</td><td><span class="code">${acode(o.i)}</span></td><td>${esc(o.name)}</td><td class="n">${fmt(o.v)}</td><td>${k===0?'<span class="tag benefit">DIREKOMENDASIKAN</span>':k<3?'<span class="muted">Cadangan</span>':'<span class="muted">–</span>'}</td></tr>`).join("")}
+   </tbody></table></div>
+   <div class="row"><button id="copy">Salin hasil</button><button class="ghost" data-go="hitung">Lihat perhitungan</button></div></div>`;
+  $("#copy").onclick=async()=>{
+    const txt="Hasil SPK Pemilihan Host Live (SAW)\n"+r.order.map((o,k)=>`${k+1}. ${o.name} - ${fmt(o.v)}`).join("\n");
+    try{await navigator.clipboard.writeText(txt);toast("Hasil disalin")}catch(e){toast("Tidak bisa menyalin otomatis")}
+  };
+}
+
+function render(v){if(v==="kriteria")renderCriteria();if(v==="host")renderHosts();if(v==="hitung")renderCalc();if(v==="hasil")renderResult()}
+route();
+</script>
+
+</body>
+</html>
